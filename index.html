@@ -4,16 +4,45 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>영어회화 스터디</title>
+<link rel="icon" type="image/png" href="https://img.icons8.com/?size=100&id=fbekNFh9vGQq&format=png">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&family=Archivo+Black&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
+  color-scheme: light;
   --bg:#0e0c0a;--surface:#181410;--card:#211d17;--card2:#2a2520;
   --border:#3a3228;--accent:#e8a838;--accent2:#5bc8a8;--accent3:#e07878;
   --text:#f0e8d8;--muted:#9a8c7a;--muted2:#5a5248;
   --verb:#89d4cf;--adj:#f0a07a;--noun:#a8d8a8;--both:#c4a0d4;--prep:#f0d07a;
 }
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body.light-mode{
+  color-scheme: light;
+  --bg:#ffffff;--surface:#f2f2f2;--card:#ffffff;--card2:#f7f7f7;
+  --border:#e0ddd8;--accent:#e8a838;--accent2:#2a9a78;--accent3:#c04040;
+  --text:#1a1410;--muted:#7a6e62;--muted2:#b0a898;
+  --verb:#1a8a88;--adj:#c05010;--noun:#2a7a2a;--both:#7040a0;--prep:#907000;
+  background:#ffffff;color:#1a1410;
+}
+body.light-mode #app-header{background:rgba(255,255,255,.95);border-bottom-color:#e0ddd8;}
+body.light-mode .class-card{background:#ffffff;border-color:#e0ddd8;}
+body.light-mode .class-card:hover{background:#f7f7f7;}
+body.light-mode .class-card::before{background:var(--accent);}
+body.light-mode .vocab-item{background:#ffffff;border-color:#e0ddd8;}
+body.light-mode .tab-btn{background:#ffffff;color:#7a6e62;}
+body.light-mode .tab-btn.active{background:#ffffff;color:#1a1410;border-bottom:2px solid var(--accent);}
+body.light-mode .quiz-progress{background:#e0ddd8;}
+body.light-mode .typing-input{background:#f2f2f2;color:#1a1410;border-color:#e0ddd8;}
+body.light-mode .mode-card{background:#ffffff;border-color:#e0ddd8;}
+body.light-mode .wn-card{background:#f7f7f7;border-color:#e0ddd8;}
+body.light-mode .ltab{color:#7a6e62;border-color:#e0ddd8;}
+body.light-mode .ltab.active{background:#e8a838;color:#0e0c0a;border-color:#e8a838;}
+body.light-mode .result-box{background:#ffffff;}
+body.light-mode .grammar-card{background:#f7f7f7;border-color:#e0ddd8;}
+body.light-mode .note-card{background:#f7f7f7;}
+body.light-mode #all-vocab-panel,body.light-mode #all-quiz-panel{background:#ffffff;}
+body.light-mode .class-header{background:#ffffff;}
+body.light-mode .class-tabs{background:#ffffff;border-bottom:1px solid #e0ddd8;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg)!important;color:var(--text)!important;min-height:100vh;overflow-x:hidden}
 #app-header{position:sticky;top:0;z-index:100;background:rgba(14,12,10,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 16px}
 .header-top{display:flex;align-items:center;gap:12px;padding:14px 0 0}
 .app-title{font-family:'Archivo Black',sans-serif;font-size:18px;font-weight:800;color:var(--accent);letter-spacing:-.5px;white-space:nowrap}
@@ -186,6 +215,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       뒤로
     </button>
     <div class="app-title">📚 영어회화 스터디</div>
+    <button id="theme-btn" onclick="toggleTheme()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Noto Sans KR',sans-serif;transition:all .2s">🌙</button>
   </div>
   <div class="level-tabs" id="level-tabs"></div>
 </div>
@@ -4028,6 +4058,26 @@ const DATA={levels:[{
 let curLevel=DATA.levels[0],curClass=null,curTab=0;
 let quizMode='',quizQuestions=[],quizIdx=0,quizScore=0,curCorrect='',wrongList=[];
 
+function toggleTheme(){
+  const isLight=document.body.classList.toggle('light-mode');
+  const btn=document.getElementById('theme-btn');
+  btn.textContent=isLight?'🌙 다크':'☀️ 라이트';
+  try{localStorage.setItem('theme',isLight?'light':'dark');}catch(e){}
+}
+// 저장된 테마 적용
+(function(){
+  try{
+    if(localStorage.getItem('theme')==='light'){
+      document.body.classList.add('light-mode');
+      const btn=document.getElementById('theme-btn');
+      if(btn)btn.textContent='🌙 다크';
+    } else {
+      const btn=document.getElementById('theme-btn');
+      if(btn)btn.textContent='☀️ 라이트';
+    }
+  }catch(e){}
+})();
+
 function init(){
   const bar=document.getElementById('level-tabs');
   bar.innerHTML=DATA.levels.map((lv,i)=>
@@ -4239,10 +4289,16 @@ function startAllQuiz(mode){
     </div>
     <div class="quiz-progress"><div class="quiz-bar" id="qz-bar" style="width:0%"></div></div>
     <div class="quiz-counter" id="qz-counter">1 / ${allQuizQuestions.length}</div>
-    <div id="qz-question"></div>
+    <div class="quiz-card" id="qz-card"></div>
+    <div id="qz-options" class="quiz-options" style="display:grid"></div>
+    <div id="qz-typing" style="display:none">
+      <input id="qz-input" class="typing-input" type="text" placeholder="영어로 입력하세요...">
+      <div class="typing-hint">대소문자·문장부호 무시하고 채점해요</div>
+      <button class="quiz-submit-btn" onclick="submitTyping()">확인</button>
+    </div>
     <div id="qz-feedback" class="quiz-feedback"></div>
     <div id="model-ans-insert"></div>
-    <button class="quiz-next" id="qz-next" onclick="allNextQuestion()">다음 →</button>`;
+    <button class="quiz-next-btn" id="qz-next" onclick="allNextQuestion()">다음 →</button>`;
   document.getElementById('qz-mode-title').textContent={kr2en:'🇰🇷 한→영 객관식',blank:'✏️빈칸 채우기',typing:'⌨️ 직접 입력',mixed:'🎲 전체 랜덤 혼합'}[mode];
   renderQuestion();
 }
