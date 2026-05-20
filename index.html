@@ -25,6 +25,12 @@ body.light-mode{
 }
 body.light-mode #app-header{background:rgba(255,255,255,.95);border-bottom-color:#e0ddd8;}
 body.light-mode .class-card{background:#ffffff;border-color:#e0ddd8;}
+/* 라이트모드 카드 라벨 글씨 진하게 */
+body.light-mode [style*="color:#00d296"]{color:#007a50!important;}
+body.light-mode [style*="color:#50a0ff"]{color:#1050cc!important;}
+body.light-mode [style*="color:#ff3333"]{color:#bb0000!important;}
+body.light-mode [style*="color:#b48cdc"]{color:#6030aa!important;}
+body.light-mode [style*="color:#ffa500"]{color:#b06000!important;}
 body.light-mode .class-card:hover{background:#f7f7f7;}
 body.light-mode .class-card::before{background:var(--accent);}
 body.light-mode .vocab-item{background:#ffffff;border-color:#e0ddd8;}
@@ -4062,7 +4068,20 @@ function toggleTheme(){
   const isLight=document.body.classList.toggle('light-mode');
   const btn=document.getElementById('theme-btn');
   btn.textContent=isLight?'🌙 다크':'☀️ 라이트';
+  applyCardColors(isLight);
   try{localStorage.setItem('theme',isLight?'light':'dark');}catch(e){}
+}
+
+function applyCardColors(isLight){
+  if(!isLight) return; // 다크모드는 원래대로
+  document.querySelectorAll('.class-card').forEach(card=>{
+    const s=card.style.borderColor||card.getAttribute('style')||'';
+    if(s.includes('0,210,150')) card.style.borderColor='rgba(0,160,100,.9)';
+    else if(s.includes('80,160,255')) card.style.borderColor='rgba(30,100,230,.9)';
+    else if(s.includes('255,50,50')) card.style.borderColor='rgba(200,20,20,.9)';
+    else if(s.includes('180,130,230')) card.style.borderColor='rgba(120,60,200,.9)';
+    else if(s.includes('255,165,0')||s.includes('255,160,0')) card.style.borderColor='rgba(200,120,0,.9)';
+  });
 }
 // 저장된 테마 적용
 (function(){
