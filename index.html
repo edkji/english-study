@@ -10088,66 +10088,85 @@ function fixPastPart(word){
   return word.trim().toLowerCase()==='read'?'red':word.trim();
 }
 
-// ── Google Cloud TTS (Laomedeia 고정) ──
-let GOOGLE_TTS_KEY = localStorage.getItem('googleTtsKey') || '';
-const ttsVoice = 'en-US-FlashTTS-Laomedeia';
+// ── Google Cloud TTS (Gemini 방식) ──
 let ttsAudio = null;
+let ttsBtn = null;
 
 function saveTTSVoice(v) {}
 function showVoiceBar() {}
 
-// API 키 없으면 입력 팝업
-function ensureTtsKey() {
-  if (GOOGLE_TTS_KEY) return true;
-  const key = prompt('Google TTS API 키를 입력하세요.\n(한 번만 입력하면 저장돼요)');
-  if (key && key.trim()) {
-    GOOGLE_TTS_KEY = key.trim();
-    localStorage.setItem('googleTtsKey', GOOGLE_TTS_KEY);
-    return true;
+function getGoogleApiKey() {
+  let key = localStorage.getItem('GOOGLE_TTS_API_KEY');
+  if (!key) {
+    key = prompt('Google Cloud TTS API 키를 입력하세요.\n(한 번만 입력하면 저장돼요)');
+    if (key && key.trim()) {
+      localStorage.setItem('GOOGLE_TTS_API_KEY', key.trim());
+    }
   }
-  return false;
+  return key ? key.trim() : null;
+}
+
+function resetTtsKey() {
+  const cur = localStorage.getItem('GOOGLE_TTS_API_KEY');
+  if (cur) {
+    if (confirm('저장된 API 키를 삭제하고 새로 입력하시겠어요?')) {
+      localStorage.removeItem('GOOGLE_TTS_API_KEY');
+      alert('삭제됐어요. 다음 🔊 버튼 누르면 입력창이 나타나요.');
+    }
+  } else {
+    getGoogleApiKey();
+  }
 }
 
 async function speakUtt(text, onEnd, rate) {
-  if (!ensureTtsKey()) { if(onEnd) onEnd(); return; }
+  const apiKey = getGoogleApiKey();
+  if (!apiKey) { if (onEnd) onEnd(); return; }
+
   try {
-    const langCode = ttsVoice.startsWith('en-GB') ? 'en-GB' : 'en-US';
-    const isFlash = ttsVoice.includes('FlashTTS');
     const res = await fetch(
-      `https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=${GOOGLE_TTS_KEY}`,
+      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
       {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           input: { text },
-          voice: { languageCode: langCode, name: ttsVoice },
-          audioConfig: Object.assign(
-            { audioEncoding: 'MP3', effectsProfileId: ['headphone-class-device'] },
-            isFlash ? {} : { speakingRate: rate || 0.95, pitch: 0.0 }
-          )
+          voice: {
+            languageCode: 'en-US',
+            name: 'en-US-Gemini-3.1-Flash-TTS-Laomedeia-Preview'
+          },
+          audioConfig: {
+            audioEncoding: 'MP3',
+            speakingRate: rate || 1.0
+          }
         })
       }
     );
-    if (!res.ok) throw new Error('Google TTS 응답 오류: ' + res.status);
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `API 오류 ${res.status}`);
+    }
+
     const data = await res.json();
     if (!data.audioContent) throw new Error('audioContent 없음');
+
     const audio = new Audio('data:audio/mp3;base64,' + data.audioContent);
     ttsAudio = audio;
-    audio.onended = () => { ttsAudio = null; if(onEnd) onEnd(); };
-    audio.onerror = () => { ttsAudio = null; if(onEnd) onEnd(); };
+    audio.onended = () => { ttsAudio = null; if (onEnd) onEnd(); };
+    audio.onerror = () => { ttsAudio = null; if (onEnd) onEnd(); };
     audio.play();
+
   } catch(e) {
-    console.warn('Google TTS 오류:', e);
+    console.warn('Google TTS 오류:', e.message);
+    // 폴백: 브라우저 내장 TTS
     const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'en-US'; utt.rate = rate || 0.95;
+    utt.lang = 'en-US'; utt.rate = rate || 1.0;
     utt.onend = onEnd; utt.onerror = onEnd;
     window.speechSynthesis.speak(utt);
   }
 }
 
-let ttsBtn = null;
 function tts(text, btn) {
-  // 재생 중이면 중단
   if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
   window.speechSynthesis.cancel();
   if (ttsBtn) { ttsBtn.classList.remove('playing'); ttsBtn.textContent = '🔊'; }
@@ -10166,16 +10185,7 @@ function tts(text, btn) {
       setTimeout(() => { if (ttsBtn !== btn) return; speakUtt(p2, done, 1.0); }, 300);
     }, 1.0);
   } else {
-    speakUtt(fixPron(text), done, 0.95);
-  }
-}
-
-function resetTtsKey() {
-  const key = prompt('Google TTS API 키를 입력하세요:', GOOGLE_TTS_KEY);
-  if (key !== null && key.trim()) {
-    GOOGLE_TTS_KEY = key.trim();
-    localStorage.setItem('googleTtsKey', GOOGLE_TTS_KEY);
-    alert('✅ API 키가 저장됐어요!');
+    speakUtt(fixPron(text), done, 1.0);
   }
 }
 
