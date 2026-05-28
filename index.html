@@ -224,7 +224,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg)!important;color:
     </button>
     <div class="app-title">📚 영어회화 스터디</div>
     <button id="theme-btn" onclick="toggleTheme()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Noto Sans KR',sans-serif;transition:all .2s">🌙</button>
-    <button onclick="showView('view-search')" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Noto Sans KR',sans-serif;transition:all .2s" title="검색">🔍</button>
+    <button onclick="resetTtsKey()" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Noto Sans KR',sans-serif;transition:all .2s" title="TTS 키 변경">🔑</button>
+    <button onclick="showView('view-search')" style="margin-left:4px;background:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Noto Sans KR',sans-serif;transition:all .2s" title="검색">🔍</button>
   </div>
   <div class="level-tabs" id="level-tabs"></div>
 </div>
@@ -10088,14 +10089,27 @@ function fixPastPart(word){
 }
 
 // ── Google Cloud TTS (Laomedeia 고정) ──
-const GOOGLE_TTS_KEY = 'AIzaSyA1iIEQjIQaDf_Yd-zHZmu6vWhXrhcWm2M';
+let GOOGLE_TTS_KEY = localStorage.getItem('googleTtsKey') || '';
 const ttsVoice = 'en-US-FlashTTS-Laomedeia';
 let ttsAudio = null;
 
-function saveTTSVoice(v) {}  // 미사용
-function showVoiceBar() {}   // 미사용
+function saveTTSVoice(v) {}
+function showVoiceBar() {}
+
+// API 키 없으면 입력 팝업
+function ensureTtsKey() {
+  if (GOOGLE_TTS_KEY) return true;
+  const key = prompt('Google TTS API 키를 입력하세요.\n(한 번만 입력하면 저장돼요)');
+  if (key && key.trim()) {
+    GOOGLE_TTS_KEY = key.trim();
+    localStorage.setItem('googleTtsKey', GOOGLE_TTS_KEY);
+    return true;
+  }
+  return false;
+}
 
 async function speakUtt(text, onEnd, rate) {
+  if (!ensureTtsKey()) { if(onEnd) onEnd(); return; }
   try {
     const langCode = ttsVoice.startsWith('en-GB') ? 'en-GB' : 'en-US';
     const isFlash = ttsVoice.includes('FlashTTS');
@@ -10153,6 +10167,15 @@ function tts(text, btn) {
     }, 1.0);
   } else {
     speakUtt(fixPron(text), done, 0.95);
+  }
+}
+
+function resetTtsKey() {
+  const key = prompt('Google TTS API 키를 입력하세요:', GOOGLE_TTS_KEY);
+  if (key !== null && key.trim()) {
+    GOOGLE_TTS_KEY = key.trim();
+    localStorage.setItem('googleTtsKey', GOOGLE_TTS_KEY);
+    alert('✅ API 키가 저장됐어요!');
   }
 }
 
