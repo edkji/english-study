@@ -10107,9 +10107,35 @@ function getTtsApiKey() {
   return key ? key.trim() : null;
 }
 
+function trackTtsUsage(text) {
+  const now = new Date();
+  const key = `ttsUsage_${now.getFullYear()}_${now.getMonth()+1}`;
+  const cur = parseInt(localStorage.getItem(key) || '0');
+  localStorage.setItem(key, cur + text.length);
+}
+
 function resetTtsKey() {
-  localStorage.removeItem('GOOGLE_TTS_KEY');
-  alert('API 키가 초기화됐어요. 다음 🔊 버튼 누르면 입력창이 나타나요.');
+  const now = new Date();
+  const key = `ttsUsage_${now.getFullYear()}_${now.getMonth()+1}`;
+  const used = parseInt(localStorage.getItem(key) || '0');
+  const FREE_LIMIT = 1000000;
+  const pct = Math.min(100, (used / FREE_LIMIT * 100)).toFixed(2);
+  const remaining = Math.max(0, FREE_LIMIT - used).toLocaleString();
+
+  const action = confirm(
+    `📊 이번 달 TTS 사용량\n` +
+    `━━━━━━━━━━━━━━━\n` +
+    `사용: ${used.toLocaleString()} 글자\n` +
+    `남은 무료: ${remaining} 글자\n` +
+    `사용률: ${pct}%\n` +
+    `(무료 한도: 100만 글자/월)\n` +
+    `━━━━━━━━━━━━━━━\n` +
+    `API 키를 초기화하려면 확인을 누르세요.`
+  );
+  if (action) {
+    localStorage.removeItem('GOOGLE_TTS_KEY');
+    alert('API 키가 초기화됐어요. 다음 🔊 버튼 누르면 입력창이 나타나요.');
+  }
 }
 
 async function playTTS(text, btnElement) {
@@ -10124,6 +10150,7 @@ async function playTTS(text, btnElement) {
 
   try {
     const cleanText = text.split('(')[0].trim();
+    trackTtsUsage(cleanText);
     const res = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
       {
