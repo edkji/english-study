@@ -10107,35 +10107,26 @@ function getTtsApiKey() {
   return key ? key.trim() : null;
 }
 
-function trackTtsUsage(text) {
-  const now = new Date();
-  const key = `ttsUsage_${now.getFullYear()}_${now.getMonth()+1}`;
-  const cur = parseInt(localStorage.getItem(key) || '0');
-  localStorage.setItem(key, cur + text.length);
-}
-
 function resetTtsKey() {
-  const now = new Date();
-  const key = `ttsUsage_${now.getFullYear()}_${now.getMonth()+1}`;
-  const used = parseInt(localStorage.getItem(key) || '0');
-  const FREE_LIMIT = 1000000;
-  const pct = Math.min(100, (used / FREE_LIMIT * 100)).toFixed(2);
-  const remaining = Math.max(0, FREE_LIMIT - used).toLocaleString();
-
-  const action = confirm(
-    `📊 이번 달 TTS 사용량\n` +
-    `━━━━━━━━━━━━━━━\n` +
-    `사용: ${used.toLocaleString()} 글자\n` +
-    `남은 무료: ${remaining} 글자\n` +
-    `사용률: ${pct}%\n` +
-    `(무료 한도: 100만 글자/월)\n` +
-    `━━━━━━━━━━━━━━━\n` +
-    `API 키를 초기화하려면 확인을 누르세요.`
-  );
-  if (action) {
-    localStorage.removeItem('GOOGLE_TTS_KEY');
-    alert('API 키가 초기화됐어요. 다음 🔊 버튼 누르면 입력창이 나타나요.');
-  }
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
+  div.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px 20px;max-width:320px;width:100%;font-family:'Noto Sans KR',sans-serif">
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">🔑 TTS API 설정</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:20px">Google Cloud Console에서 실제 사용량을 확인할 수 있어요.</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a href="https://console.cloud.google.com/apis/api/texttospeech.googleapis.com/metrics" target="_blank"
+           style="display:block;padding:13px;border-radius:12px;background:var(--accent);color:#0e0c0a;font-size:14px;font-weight:700;text-align:center;text-decoration:none"
+           onclick="div.remove()">사용량 확인하기 →</a>
+        <button onclick="if(confirm('API 키를 초기화할까요?')){localStorage.removeItem('GOOGLE_TTS_KEY');alert('초기화됐어요.');this.closest('[style*=fixed]').remove();}"
+           style="padding:13px;border-radius:12px;border:1px solid var(--border);background:none;color:var(--muted);font-size:14px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">API 키 초기화</button>
+        <button onclick="this.closest('[style*=fixed]').remove()"
+           style="padding:13px;border-radius:12px;border:none;background:none;color:var(--muted2);font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">닫기</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(div);
+  div.addEventListener('click', e => { if(e.target === div) div.remove(); });
 }
 
 async function playTTS(text, btnElement) {
@@ -10150,7 +10141,6 @@ async function playTTS(text, btnElement) {
 
   try {
     const cleanText = text.split('(')[0].trim();
-    trackTtsUsage(cleanText);
     const res = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
       {
@@ -10204,7 +10194,7 @@ function tts(text, btn) {
   if (ttsBtn) { ttsBtn.classList.remove('playing'); ttsBtn.textContent = '🔊'; }
   if (ttsBtn === btn) { ttsBtn = null; return; }
   ttsBtn = btn;
-  btn.classList.add('playing'); btn.textContent = '⏸';
+  btn.classList.add('playing'); btn.textContent = '⏳'; // 로딩 표시
 
   const done = () => {
     if (ttsBtn === btn) { btn.classList.remove('playing'); btn.textContent = '🔊'; ttsBtn = null; }
@@ -10222,29 +10212,27 @@ function tts(text, btn) {
     const p2 = fixPastPart(fixPron(arrow[2].trim()));
 
     const audio1 = new Audio();
-    audio1.play().catch(() => {});
+    audio1.play().catch(()=>{});
+    const audio2 = new Audio();
+    audio2.play().catch(()=>{});
 
-    fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ input:{text:p1}, voice:{languageCode:'en-US',name:'en-US-Neural2-F'}, audioConfig:{audioEncoding:'MP3',speakingRate:1.0} })
-    }).then(r=>r.json()).then(d=>{
-      audio1.src = 'data:audio/mp3;base64,' + d.audioContent;
+    const ttsUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+    const ttsBody = (text) => JSON.stringify({ input:{text}, voice:{languageCode:'en-US',name:'en-US-Neural2-F'}, audioConfig:{audioEncoding:'MP3',speakingRate:1.0} });
+
+    // p1, p2 동시에 요청 (텀 제거)
+    Promise.all([
+      fetch(ttsUrl, {method:'POST',headers:{'Content-Type':'application/json'},body:ttsBody(p1)}).then(r=>r.json()),
+      fetch(ttsUrl, {method:'POST',headers:{'Content-Type':'application/json'},body:ttsBody(p2)}).then(r=>r.json()),
+    ]).then(([d1, d2]) => {
+      audio1.src = 'data:audio/mp3;base64,' + d1.audioContent;
+      audio2.src = 'data:audio/mp3;base64,' + d2.audioContent;
       ttsAudio = audio1;
+      if (ttsBtn === btn) btn.textContent = '⏸';
       audio1.onended = () => {
         if (ttsBtn !== btn) return;
-        setTimeout(() => {
-          const audio2 = new Audio();
-          audio2.play().catch(()=>{});
-          fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ input:{text:p2}, voice:{languageCode:'en-US',name:'en-US-Neural2-F'}, audioConfig:{audioEncoding:'MP3',speakingRate:1.0} })
-          }).then(r=>r.json()).then(d2=>{
-            audio2.src = 'data:audio/mp3;base64,' + d2.audioContent;
-            ttsAudio = audio2;
-            audio2.onended = done;
-            audio2.play();
-          }).catch(done);
-        }, 300);
+        ttsAudio = audio2;
+        audio2.onended = done;
+        audio2.play();
       };
       audio1.play();
     }).catch(done);
@@ -10257,6 +10245,7 @@ function tts(text, btn) {
     }).then(r=>r.json()).then(d=>{
       audio.src = 'data:audio/mp3;base64,' + d.audioContent;
       ttsAudio = audio;
+      if (ttsBtn === btn) btn.textContent = '⏸';
       audio.onended = done;
       audio.play();
     }).catch(done);
