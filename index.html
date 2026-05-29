@@ -214,7 +214,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg)!important;color:
 </head>
 <body>
 
-<!-- Google TTS 설정 (Laomedeia 고정) -->
+<!-- Google TTS 설정 (Neural2-F 고정) -->
 
 <div id="app-header">
   <div class="header-top">
@@ -223,9 +223,9 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg)!important;color:
       뒤로
     </button>
     <div class="app-title">📚 영어회화 스터디</div>
-    <button id="theme-btn" onclick="toggleTheme()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Noto Sans KR',sans-serif;transition:all .2s">🌙</button>
-    <button onclick="resetTtsKey()" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Noto Sans KR',sans-serif;transition:all .2s" title="TTS 키 변경">🔑</button>
-    <button onclick="showView('view-search')" style="margin-left:4px;background:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Noto Sans KR',sans-serif;transition:all .2s" title="검색">🔍</button>
+    <button id="theme-btn" onclick="toggleTheme()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:15px;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;padding:0"><span style="display:block;transform:translateY(-0.6px)">🌕</span></button>
+    <button onclick="resetTtsKey()" style="margin-left:0px;background:none;border:1px solid var(--border);border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:16px;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0" title="TTS 키 변경"><span style="display:block;transform:translateY(-0.6px)">🔑</span></button>
+    <button onclick="showView('view-search')" style="margin-left:0px;background:none;border:1px solid var(--border);border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:16px;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0" title="검색"><span style="display:block;transform:translateY(-0.6px)">🔍</span></button>
   </div>
   <div class="level-tabs" id="level-tabs"></div>
 </div>
@@ -9220,7 +9220,9 @@ let quizMode='',quizQuestions=[],quizIdx=0,quizScore=0,curCorrect='',wrongList=[
 function toggleTheme(){
   const isLight=document.body.classList.toggle('light-mode');
   const btn=document.getElementById('theme-btn');
-  btn.textContent=isLight?'🌙 다크':'☀️ 라이트';
+  btn.innerHTML=isLight?'<span style="display:block;transform:translateY(-0.6px)">🌕</span>':'<span style="display:block;transform:translateY(-0.6px)">☀️</span>';
+  btn.style.paddingBottom='';
+  btn.style.paddingTop='';
   applyCardColors(isLight);
   try{localStorage.setItem('theme',isLight?'light':'dark');}catch(e){}
 }
@@ -9242,10 +9244,10 @@ function applyCardColors(isLight){
     if(localStorage.getItem('theme')==='light'){
       document.body.classList.add('light-mode');
       const btn=document.getElementById('theme-btn');
-      if(btn)btn.textContent='🌙 다크';
+      if(btn){btn.innerHTML='<span style="display:block;transform:translateY(-0.6px)">☀️</span>';btn.style.paddingBottom='';btn.style.paddingTop='';}
     } else {
       const btn=document.getElementById('theme-btn');
-      if(btn)btn.textContent='☀️ 라이트';
+      if(btn){btn.innerHTML='<span style="display:block;transform:translateY(-0.6px)">🌕</span>';btn.style.paddingBottom='';btn.style.paddingTop='';}
     }
   }catch(e){}
 })();
@@ -10088,56 +10090,49 @@ function fixPastPart(word){
   return word.trim().toLowerCase()==='read'?'red':word.trim();
 }
 
-// ── Google Cloud TTS (Gemini 방식) ──
+
+// ── Google Cloud TTS (모바일 락 해제 방식) ──
 let ttsAudio = null;
 let ttsBtn = null;
 
 function saveTTSVoice(v) {}
 function showVoiceBar() {}
 
-function getGoogleApiKey() {
-  let key = localStorage.getItem('GOOGLE_TTS_API_KEY');
+function getTtsApiKey() {
+  let key = localStorage.getItem('GOOGLE_TTS_KEY');
   if (!key) {
     key = prompt('Google Cloud TTS API 키를 입력하세요.\n(한 번만 입력하면 저장돼요)');
-    if (key && key.trim()) {
-      localStorage.setItem('GOOGLE_TTS_API_KEY', key.trim());
-    }
+    if (key) localStorage.setItem('GOOGLE_TTS_KEY', key.trim());
   }
   return key ? key.trim() : null;
 }
 
 function resetTtsKey() {
-  const cur = localStorage.getItem('GOOGLE_TTS_API_KEY');
-  if (cur) {
-    if (confirm('저장된 API 키를 삭제하고 새로 입력하시겠어요?')) {
-      localStorage.removeItem('GOOGLE_TTS_API_KEY');
-      alert('삭제됐어요. 다음 🔊 버튼 누르면 입력창이 나타나요.');
-    }
-  } else {
-    getGoogleApiKey();
-  }
+  localStorage.removeItem('GOOGLE_TTS_KEY');
+  alert('API 키가 초기화됐어요. 다음 🔊 버튼 누르면 입력창이 나타나요.');
 }
 
-async function speakUtt(text, onEnd, rate) {
-  const apiKey = getGoogleApiKey();
-  if (!apiKey) { if (onEnd) onEnd(); return; }
+async function playTTS(text, btnElement) {
+  const apiKey = getTtsApiKey();
+  if (!apiKey) return;
+
+  if (btnElement) btnElement.classList.add('playing');
+
+  // 모바일 미디어 차단 우회: 터치 시점에 빈 오디오 미리 생성
+  const audio = new Audio();
+  audio.play().catch(() => {});
 
   try {
+    const cleanText = text.split('(')[0].trim();
     const res = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          input: { text },
-          voice: {
-            languageCode: 'en-US',
-            name: 'en-US-Gemini-3.1-Flash-TTS-Laomedeia-Preview'
-          },
-          audioConfig: {
-            audioEncoding: 'MP3',
-            speakingRate: rate || 1.0
-          }
+          input: { text: fixPron(cleanText) },
+          voice: { languageCode: 'en-US', name: 'en-US-Neural2-F' },
+          audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0 }
         })
       }
     );
@@ -10150,22 +10145,32 @@ async function speakUtt(text, onEnd, rate) {
     const data = await res.json();
     if (!data.audioContent) throw new Error('audioContent 없음');
 
-    const audio = new Audio('data:audio/mp3;base64,' + data.audioContent);
+    // 미리 만든 audio 객체에 src 주입 (모바일 잠금 해제 유지)
+    audio.src = 'data:audio/mp3;base64,' + data.audioContent;
     ttsAudio = audio;
-    audio.onended = () => { ttsAudio = null; if (onEnd) onEnd(); };
-    audio.onerror = () => { ttsAudio = null; if (onEnd) onEnd(); };
-    audio.play();
+
+    audio.onended = () => {
+      ttsAudio = null;
+      if (btnElement) btnElement.classList.remove('playing');
+    };
+    audio.onerror = () => {
+      ttsAudio = null;
+      if (btnElement) btnElement.classList.remove('playing');
+    };
+
+    await audio.play();
 
   } catch(e) {
     console.warn('Google TTS 오류:', e.message);
+    if (btnElement) btnElement.classList.remove('playing');
     // 폴백: 브라우저 내장 TTS
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'en-US'; utt.rate = rate || 1.0;
-    utt.onend = onEnd; utt.onerror = onEnd;
+    const utt = new SpeechSynthesisUtterance(text.split('(')[0].trim());
+    utt.lang = 'en-US'; utt.rate = 0.9;
     window.speechSynthesis.speak(utt);
   }
 }
 
+// 기존 tts(text, btn) 래퍼 — UI 토글 (재생/중단)
 function tts(text, btn) {
   if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
   window.speechSynthesis.cancel();
@@ -10173,19 +10178,61 @@ function tts(text, btn) {
   if (ttsBtn === btn) { ttsBtn = null; return; }
   ttsBtn = btn;
   btn.classList.add('playing'); btn.textContent = '⏸';
+
   const done = () => {
     if (ttsBtn === btn) { btn.classList.remove('playing'); btn.textContent = '🔊'; ttsBtn = null; }
   };
-  const arrow = text.match(/^(.+?)\s*→\s*(.+)$/);
+
+  // 🔊 버튼은 playTTS 직접 호출하므로 tts()는 내부에서만 사용
+  const cleanText = text.split('(')[0].trim();
+  const arrow = cleanText.match(/^(.+?)\s*→\s*(.+)$/);
+
+  const apiKey = getTtsApiKey();
+  if (!apiKey) { done(); return; }
+
   if (arrow) {
     const p1 = fixPron(arrow[1].trim());
     const p2 = fixPastPart(fixPron(arrow[2].trim()));
-    speakUtt(p1, () => {
-      if (ttsBtn !== btn) return;
-      setTimeout(() => { if (ttsBtn !== btn) return; speakUtt(p2, done, 1.0); }, 300);
-    }, 1.0);
+
+    const audio1 = new Audio();
+    audio1.play().catch(() => {});
+
+    fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ input:{text:p1}, voice:{languageCode:'en-US',name:'en-US-Neural2-F'}, audioConfig:{audioEncoding:'MP3',speakingRate:1.0} })
+    }).then(r=>r.json()).then(d=>{
+      audio1.src = 'data:audio/mp3;base64,' + d.audioContent;
+      ttsAudio = audio1;
+      audio1.onended = () => {
+        if (ttsBtn !== btn) return;
+        setTimeout(() => {
+          const audio2 = new Audio();
+          audio2.play().catch(()=>{});
+          fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ input:{text:p2}, voice:{languageCode:'en-US',name:'en-US-Neural2-F'}, audioConfig:{audioEncoding:'MP3',speakingRate:1.0} })
+          }).then(r=>r.json()).then(d2=>{
+            audio2.src = 'data:audio/mp3;base64,' + d2.audioContent;
+            ttsAudio = audio2;
+            audio2.onended = done;
+            audio2.play();
+          }).catch(done);
+        }, 300);
+      };
+      audio1.play();
+    }).catch(done);
   } else {
-    speakUtt(fixPron(text), done, 1.0);
+    const audio = new Audio();
+    audio.play().catch(()=>{});
+    fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ input:{text:fixPron(cleanText)}, voice:{languageCode:'en-US',name:'en-US-Neural2-F'}, audioConfig:{audioEncoding:'MP3',speakingRate:1.0} })
+    }).then(r=>r.json()).then(d=>{
+      audio.src = 'data:audio/mp3;base64,' + d.audioContent;
+      ttsAudio = audio;
+      audio.onended = done;
+      audio.play();
+    }).catch(done);
   }
 }
 
