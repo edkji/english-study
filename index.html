@@ -205,7 +205,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg)!important;color:
 .tts-btn{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:8px;color:var(--muted);font-size:16px;line-height:1;transition:color .2s;flex-shrink:0}
 .tts-btn:hover{color:var(--accent)}
 .tts-btn.playing{color:var(--accent2);animation:pulse 1s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tts-spinner{width:14px;height:14px;border:2px solid var(--muted2);border-top-color:var(--accent2);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
 .result-btn.primary{border:1px solid var(--accent);background:none;color:var(--accent)}
 .result-btn.primary:hover{background:var(--accent);color:#0e0c0a}
 .result-btn.secondary{border:1px solid var(--border);background:none;color:var(--muted)}
@@ -10191,13 +10192,13 @@ async function playTTS(text, btnElement) {
 function tts(text, btn) {
   if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
   window.speechSynthesis.cancel();
-  if (ttsBtn) { ttsBtn.classList.remove('playing'); ttsBtn.textContent = '🔊'; }
+  if (ttsBtn) { ttsBtn.classList.remove('playing'); ttsBtn.innerHTML = '🔊'; }
   if (ttsBtn === btn) { ttsBtn = null; return; }
   ttsBtn = btn;
-  btn.classList.add('playing'); btn.textContent = '⏳'; // 로딩 표시
+  btn.classList.add('playing'); btn.innerHTML = '<span class="tts-spinner"></span>';
 
   const done = () => {
-    if (ttsBtn === btn) { btn.classList.remove('playing'); btn.textContent = '🔊'; ttsBtn = null; }
+    if (ttsBtn === btn) { btn.classList.remove('playing'); btn.innerHTML = '🔊'; ttsBtn = null; }
   };
 
   // 🔊 버튼은 playTTS 직접 호출하므로 tts()는 내부에서만 사용
@@ -10211,27 +10212,28 @@ function tts(text, btn) {
     const p1 = fixPron(arrow[1].trim());
     const p2 = fixPastPart(fixPron(arrow[2].trim()));
 
+    // audio1만 모바일 잠금 해제용으로 먼저 생성
     const audio1 = new Audio();
     audio1.play().catch(()=>{});
-    const audio2 = new Audio();
-    audio2.play().catch(()=>{});
 
     const ttsUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-    const ttsBody = (text) => JSON.stringify({ input:{text}, voice:{languageCode:'en-US',name:'en-US-Neural2-F'}, audioConfig:{audioEncoding:'MP3',speakingRate:1.0} });
+    const ttsBody = (t) => JSON.stringify({ input:{text:t}, voice:{languageCode:'en-US',name:'en-US-Neural2-F'}, audioConfig:{audioEncoding:'MP3',speakingRate:1.0} });
 
-    // p1, p2 동시에 요청 (텀 제거)
+    // p1, p2 동시 요청
     Promise.all([
       fetch(ttsUrl, {method:'POST',headers:{'Content-Type':'application/json'},body:ttsBody(p1)}).then(r=>r.json()),
       fetch(ttsUrl, {method:'POST',headers:{'Content-Type':'application/json'},body:ttsBody(p2)}).then(r=>r.json()),
     ]).then(([d1, d2]) => {
       audio1.src = 'data:audio/mp3;base64,' + d1.audioContent;
-      audio2.src = 'data:audio/mp3;base64,' + d2.audioContent;
       ttsAudio = audio1;
-      if (ttsBtn === btn) btn.textContent = '⏸';
+      if (ttsBtn === btn) btn.innerHTML = '⏸';
       audio1.onended = () => {
         if (ttsBtn !== btn) return;
+        // audio2는 src 설정 후 새로 생성해서 재생
+        const audio2 = new Audio('data:audio/mp3;base64,' + d2.audioContent);
         ttsAudio = audio2;
         audio2.onended = done;
+        audio2.onerror = done;
         audio2.play();
       };
       audio1.play();
@@ -10245,7 +10247,7 @@ function tts(text, btn) {
     }).then(r=>r.json()).then(d=>{
       audio.src = 'data:audio/mp3;base64,' + d.audioContent;
       ttsAudio = audio;
-      if (ttsBtn === btn) btn.textContent = '⏸';
+      if (ttsBtn === btn) btn.innerHTML = '⏸';
       audio.onended = done;
       audio.play();
     }).catch(done);
